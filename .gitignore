@@ -1,0 +1,6 @@
+data/
+.fibenv/
+__pycache__/
+*.ipynb_checkpoints
+.fibenv/
+.quant1/
