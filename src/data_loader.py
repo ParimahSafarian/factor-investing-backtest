@@ -3,12 +3,27 @@ import pandas as pd
 import yfinance as yf
 import time
 from typing import List
+import requests
+
+
 
 def get_sp500_tickers() -> List[str]:
     """Scrape *current* S&P 500 tickers from Wikipedia."""
-    table = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-    df = table[0]
-    tickers = df['Symbol'].str.replace('.', '-', regex=False).tolist()
+    url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
+
+    # Add a User-Agent header so Wikipedia accepts the request
+    headers = {"User-Agent": "Mozilla/5.0"}
+    html = requests.get(url, headers=headers).text
+
+    # Parse the first table on the page
+    table = pd.read_html(html)[0]
+
+    # Extract company names and tickers
+    # companies = table["Security"]
+    tickers = table["Symbol"]
+    
+    # Clean tickers (e.g. BRK.B -> BRK-B)
+    tickers = tickers.str.replace('.', '-', regex=False).tolist()
     return tickers
 
 def download_price_data(tickers, start="2010-01-01", end=None, interval='1d', batch_size=80):
@@ -20,7 +35,7 @@ def download_price_data(tickers, start="2010-01-01", end=None, interval='1d', ba
     for i in range(0, len(tickers), batch_size):
         batch = tickers[i:i+batch_size]
         print(f"Downloading batch {i} -> {i+len(batch)}")
-        data = yf.download(batch, start=start, end=end, interval=interval, threads=True)['Adj Close']
+        data = yf.download(batch, start=start, end=end, interval=interval, threads=True)['Close']
         # if single ticker -> make dataframe
         if isinstance(data, pd.Series):
             data = data.to_frame(name=batch[0])
