@@ -24,6 +24,7 @@ def get_sp500_tickers() -> List[str]:
     
     # Clean tickers (e.g. BRK.B -> BRK-B)
     tickers = tickers.str.replace('.', '-', regex=False).tolist()
+    tickers = ["SPY"] + tickers  # add SPY ETF for market proxy
     return tickers
 
 def download_price_data(tickers, start="2010-01-01", end=None, interval='1d', batch_size=80):
