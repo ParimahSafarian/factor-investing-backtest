@@ -18,6 +18,7 @@ This is intended as a reproducible portfolio project suitable for a quant-invest
 ---
 
 ## 🧭 Project Structure
+```bash
 factor-investing-backtest/
 │
 ├── data/                # (optional) cached market data
@@ -29,7 +30,7 @@ factor-investing-backtest/
 ├──factor_backtest.ipynb
 ├── requirements.txt
 └── README.md
-
+```
 
 
 ---
