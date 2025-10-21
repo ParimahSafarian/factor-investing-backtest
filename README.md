@@ -21,10 +21,10 @@ This is intended as a reproducible portfolio project suitable for a quant-invest
 ```bash
 factor-investing-backtest/
 │
-├── data/                # (optional) cached market data
 ├── src/                 # Python scripts for modularity
 │   ├── data_loader.py
 │   ├── factor_model.py
+│   ├── portfolio.py
 │   └── backtest.py
 ├── results/             # Output plots, logs, or performance metrics
 ├──factor_backtest.ipynb
