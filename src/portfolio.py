@@ -2,10 +2,14 @@
 import pandas as pd
 import numpy as np
 
-def construct_long_short_weights(score_df: pd.DataFrame, long_pct=0.2, short_pct=0.2):
+def construct_long_short_weights(score_df: pd.DataFrame, long_pct=0.2, short_pct=0.2,
+                                  long_weight=1.0, short_weight=0.0):
     """
     For each date (row) in score_df, create equal-weighted long/short weights.
-    Returns DataFrame of weights (rows=dates, cols=tickers). Sum of each row = 0.
+    long_pct/short_pct: fraction of tickers to go long/short.
+    long_weight: total dollar weight on the long side (default 1.0 = fully invested).
+    short_weight: total dollar weight on the short side (default 0.0 = long-only).
+    Returns DataFrame of weights (rows=dates, cols=tickers).
     """
     dates = score_df.index
     cols = score_df.columns
@@ -17,16 +21,14 @@ def construct_long_short_weights(score_df: pd.DataFrame, long_pct=0.2, short_pct
         if n == 0:
             continue
         n_long = max(1, int(np.floor(long_pct * n)))
-        n_short = max(1, int(np.floor(short_pct * n)))
-        if n_long + n_short == 0:
-            continue
+        n_short = max(1, int(np.floor(short_pct * n))) if short_weight > 0 else 0
         ranked = row.sort_values(ascending=False)
         longs = ranked.index[:n_long]
-        shorts = ranked.index[-n_short:]
         if n_long > 0:
-            weights.loc[date, longs] = 1.0 / n_long
+            weights.loc[date, longs] = long_weight / n_long
         if n_short > 0:
-            weights.loc[date, shorts] = -1.0 / n_short
+            shorts = ranked.index[-n_short:]
+            weights.loc[date, shorts] = -short_weight / n_short
     return weights
 
 def expand_weights_to_daily(weights_rebalance: pd.DataFrame, price_index: pd.DatetimeIndex):

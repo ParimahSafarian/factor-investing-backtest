@@ -62,6 +62,29 @@ def value_from_quarterly(prices: pd.DataFrame, book_value: pd.DataFrame,
 
     return val
 
+def compute_reversal(prices: pd.DataFrame, lookback_days=21):
+    """Short-term reversal: negate the last month's return. Recent losers tend to bounce back."""
+    ret = prices.pct_change(periods=lookback_days)
+    return -ret  # negate so recent losers score highest
+
+
+def compute_beta(prices: pd.DataFrame, market_col='SPY', window=252):
+    """
+    Rolling CAPM beta for each stock vs a market column.
+    Low beta is desirable (low-beta anomaly), so we negate.
+    Returns DataFrame (index=dates, columns=tickers) where higher = lower beta = better.
+    """
+    daily_ret = prices.pct_change()
+    market_ret = daily_ret[market_col]
+    stock_ret = daily_ret.drop(columns=[market_col], errors='ignore')
+
+    market_var = market_ret.rolling(window).var()
+    beta = stock_ret.apply(
+        lambda col: col.rolling(window).cov(market_ret) / market_var
+    )
+    return -beta  # negate so lower beta = higher score
+
+
 def cross_sectional_zscore(factor_df: pd.DataFrame):
     """
     Compute z-score across tickers for each date (row-wise).
