@@ -24,6 +24,7 @@ def value_from_fundamentals(fund_df: pd.DataFrame):
     Build a simple 'value' factor from fundamentals DataFrame (index=ticker).
     Returns Series or DataFrame with higher = better value.
     Prefer priceToBook if available; else invert trailingPE.
+    NOTE: This returns a static snapshot. Prefer value_from_quarterly for backtests.
     """
     if 'priceToBook' in fund_df.columns and fund_df['priceToBook'].notna().any():
         val = -fund_df['priceToBook']  # lower P/B is better -> negate so larger is better
@@ -31,6 +32,34 @@ def value_from_fundamentals(fund_df: pd.DataFrame):
         val = -fund_df['trailingPE']   # lower PE = better
     else:
         val = pd.Series(index=fund_df.index, dtype=float)
+    return val   # one value per ticker, not time-varying
+
+
+def value_from_quarterly(prices: pd.DataFrame, book_value: pd.DataFrame,
+                         ttm_earnings: pd.DataFrame):
+    """
+    Build a time-varying value factor from quarterly fundamentals and daily prices.
+    Uses price-to-book (P/B) where available, falls back to P/E.
+    Quarterly data is forward-filled to daily frequency, then combined with prices.
+    Returns DataFrame (index=dates, columns=tickers) where higher = cheaper = better.
+    """
+    val = pd.DataFrame(index=prices.index, columns=prices.columns, dtype=float)
+
+    # Price-to-Book: lower is cheaper, so negate
+    pb_tickers = prices.columns.intersection(book_value.columns)
+    if len(pb_tickers) > 0:
+        bv_daily = book_value[pb_tickers].reindex(prices.index).ffill()
+        pb = prices[pb_tickers] / bv_daily
+        val[pb_tickers] = -pb  # negate so higher = cheaper
+
+    # Fill remaining tickers with P/E if available
+    pe_tickers = prices.columns.intersection(ttm_earnings.columns)
+    missing = pe_tickers.difference(pb_tickers)
+    if len(missing) > 0:
+        eps_daily = ttm_earnings[missing].reindex(prices.index).ffill()
+        pe = prices[missing] / eps_daily
+        val[missing] = -pe  # negate so higher = cheaper
+
     return val
 
 def cross_sectional_zscore(factor_df: pd.DataFrame):
@@ -52,12 +81,9 @@ def combine_factors(factor_dfs: dict, weights: dict = None):
     names = list(factor_dfs.keys())
     if weights is None:
         weights = {n: 1.0/len(names) for n in names}
-    # align indexes/columns (take union)
-    all_idx = sorted({d.index for d in factor_dfs.values()}, key=lambda x: x)
-    # simpler: reindex to union of indexes and columns of first df
-    base = list(factor_dfs.values())[0]
-    common_index = base.index
-    common_cols = base.columns
+
+    common_index = sorted(set.union(*(set(df.index) for df in factor_dfs.values())))
+    common_cols = sorted(set.union(*(set(df.columns) for df in factor_dfs.values())))
     # reindex all
     aligned = [factor_dfs[n].reindex(index=common_index, columns=common_cols) for n in names]
     score = sum(weights[n] * aligned[i] for i,n in enumerate(names))
