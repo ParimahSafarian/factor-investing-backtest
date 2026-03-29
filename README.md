@@ -1,44 +1,44 @@
-# 📊 Factor Investing Backtest
+# Factor Investing Backtest
 
-**A multi-factor long-short equity backtest implemented in Python.**  
-This project builds, tests, and evaluates factor-based portfolios (Value, Momentum, Quality) on an S&P 500 universe and compares performance to the market benchmark (SPY).
+A multi-factor equity backtest on S&P 500 stocks, built in Python.
 
----
+## Project Structure
 
-## 🔎 Overview
-The repository demonstrates:
-- factor construction (momentum, value, quality),
-- portfolio construction (long-short or long-only, monthly rebalancing),
-- a backtesting engine with performance statistics (annualized return, volatility, Sharpe, max drawdown),
-- basic robustness checks (lookahead avoidance, assertions for weights),
-- light treatment of transaction costs and turnover.
-
-This is intended as a reproducible portfolio project suitable for a quant-investing portfolio or interview discussion.
-
----
-
-## 🧭 Project Structure
-```bash
-factor-investing-backtest/
-│
-├── src/                 # Python scripts for modularity
-│   ├── data_loader.py
-│   ├── factor_model.py
-│   ├── portfolio.py
-│   └── backtest.py
-├── results/             # Output plots, logs, or performance metrics
-├──factor_backtest.ipynb
-├── requirements.txt
-└── README.md
+```
+src/
+  data_loader.py      # S&P 500 tickers, price downloads, quarterly fundamentals
+  factor_builder.py   # Factor computation and normalization
+  portfolio.py        # Portfolio weight construction
+  backtest.py         # Backtest engine and performance metrics
+factor_backtest.ipynb # Main notebook — run everything here
 ```
 
+## Factors
 
----
+All factors are computed from price data:
 
-## 🛠️ Requirements
-Tested with Python 3.10+.
+- **Momentum** — 12-month return, skipping the most recent month
+- **Reversal** — negated 1-month return (short-term mean reversion)
+- **Quality** — negated rolling volatility (low vol = higher quality)
+- **Beta** — negated rolling CAPM beta vs SPY (low beta = higher score)
 
-Install dependencies:
+Each factor is z-scored cross-sectionally before combining.
+
+## Portfolio Construction
+
+- Monthly rebalance (end-of-month)
+- Long top N% of stocks by composite score, short bottom N%
+- `long_weight` / `short_weight` control dollar exposure per side
+- Defaults to long-only (`short_weight=0`)
+- Weights forward-filled to daily frequency
+
+## Backtest
+
+- Daily P&L from previous-day weights x daily returns (no lookahead)
+- Metrics: annualized return, volatility, Sharpe ratio, max drawdown
+- Approximate transaction costs via turnover
+
+## Setup
 
 ```bash
 python3 -m venv .venv
@@ -46,40 +46,4 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-# 🧩 How it works (high-level)
-
-## 1. Data
-
-Scrape current S&P 500 tickers from Wikipedia (utility in src/data_loader.py).
-
-Download adjusted close prices (via yfinance).
-
-Optionally fetch simple fundamentals via yfinance.Ticker.info (P/B, P/E, ROE).
-
-## 2. Factors (src/factor_builder.py)
-
-Momentum: 12-month return skipping the last month.
-
-Value: inverse P/B or inverse P/E where available.
-
-Quality: low historical volatility or ROE where available.
-
-Cross-sectional z-score normalization per rebalance date.
-
-Combine factors by equal weighting (or custom weights).
-
-## 3. Portfolio construction (src/portfolio.py)
-
-Monthly rebalance (e.g., end-of-month).
-
-Long top X% and short bottom X% (e.g. 20% each) for long-short; equal weight per leg.
-
-Expand rebalance weights to daily by forward-filling.
-
-## 4. Backtest (src/backtest.py)
-
-Compute daily P&L using previous-day weights and daily returns.
-
-Metrics: cumulative returns, annualized return, volatility, Sharpe, max drawdown, rolling Sharpe.
-
-Approximate transaction costs using turnover × cost per unit.
+Then run `factor_backtest.ipynb`.
